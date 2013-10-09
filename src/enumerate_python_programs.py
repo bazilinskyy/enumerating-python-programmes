@@ -16,14 +16,14 @@ OUTPUT_FOUND_PROGRAMS       = False
 OUTPUT_TIMESTAMPS           = True
 OUTPUT_STATS_ON_TIMESTAMPS  = True
 OUTPUT_PROGRAM_CANDIDATES   = False
-OUTPUT_STATS_ON_LEN_OF_PROGRAMS  = True
+OUTPUT_STATS_ON_LEN_OF_PROGRAMS = True
 STARTING_LETTER             = 'a'
 FINISHING_LETTER            = 'z'
 USE_UPPERCASE               = True
 MAX_LENGTH_PROGRAM          = -1    # -1 indicates that a program will run in an infinite loop,
                                     # incrementing length of generated program candidates in each iteration.
-OUTPUT_TO_FILE              = False # TODO
-SAVE_SESSION_STATE          = False # TODO
+OUTPUT_TO_FILE              = True 
+FILE_NAME                   = "found_programs.txt" # Name of the file for outputting found programs
 ###################################
 
 numberTries = 0 # Count number of tries
@@ -59,6 +59,17 @@ def printFoundProgram(program):
         print "######################################################################################################"
         print program
 
+def appendToFile(programCandidate):
+    try:
+        f = file(FILE_NAME, "a")
+        f.write(str(programsFound))
+        f.write(" ::: ")
+        f.write(programCandidate)
+        f.write("\n")
+        f.close()
+    except IOError as (errno,strerror):
+        print "I/O error({0}): {1}".format(errno, strerror)
+
 # Main function
 if __name__ == '__main__':
     print "Enumerating Python programs by Pavlo Bazilinskyy <PAVLO.BAZILINSKYY.2013@nuim.ie>"
@@ -68,6 +79,10 @@ if __name__ == '__main__':
         start_time = time.time()
     numCharGenerate = 1 # Words of which length to generate inn the current itteration of the loop.
     print "Program has started work... Output will come soon."
+    
+    # Clear file for output
+    if OUTPUT_TO_FILE:
+        open(FILE_NAME, 'w').close()
     
     if OUTPUT_STATS_ON_LEN_OF_PROGRAMS:
         foundProgramsByLength = dict() # Create dictionary for storing numbers of programs of different langth found.
@@ -84,8 +99,10 @@ if __name__ == '__main__':
                 tryCompile(programCandidate) # Compile to see if a program candidate can be seen as a Python program.
                 programsFound += 1
                 printFoundProgram(programCandidate) # Print out found program
+                if OUTPUT_TO_FILE: # Output found program to the file
+                    appendToFile(programCandidate)
                 foundProgramsByLength[str(numCharGenerate)] += 1 # Increment a number of programs found for current length
-            except Exception, v: # Program candidate failed to be compiled. Hence, it is not a valid Python program.
+            except SyntaxError, v: # Program candidate failed to be compiled. Hence, it is not a valid Python program.
                 if OUTPUT_SYNTAX_CHECK_ERRORS:
                     print "Syntax error:", v, " in program: ", programCandidate
             if OUTPUT_TIMESTAMPS and numberTries % 1000000 == 0: # Output timestamp after analysing every 1000000 candidates.
