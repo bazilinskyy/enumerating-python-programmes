@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+ #!/usr/bin/env python
 # -*- coding: utf-8 -*- 
 
 '''
@@ -10,30 +10,29 @@ Created on Oct 6, 2013
 import __builtin__
 from itertools import product
 import time
+import os.path
 
-
-# start where it left off, bug with all false, output just programs
 ########## CONFIGURATION ##########
-OUTPUT_FOUND_NOTIFICATION = False
-OUTPUT_SYNTAX_CHECK_ERRORS = False
-OUTPUT_FOUND_PROGRAMS = True
-OUTPUT_HASH_PLACEHOLDER = False
-OUTPUT_TIMESTAMPS = False
-OUTPUT_STATS_ON_TIMESTAMPS = False
-OUTPUT_PROGRAM_CANDIDATES = False
-OUTPUT_STATS_ON_LEN_OF_PROGRAMS = False
-STARTING_LETTER = 'a'
-FINISHING_LETTER = 'z'
-USE_UPPERCASE = True
-MAX_LENGTH_PROGRAM = -1  # -1 indicates that a program will run in an infinite loop,
-                                        # incrementing length of generated program candidates in each iteration.
-OUTPUT_TO_FILE = True 
-FILE_NAME = "found_programs.txt"  # Name of the file for outputting found programs
+OUTPUT_FOUND_NOTIFICATION           = False
+OUTPUT_SYNTAX_CHECK_ERRORS          = False
+OUTPUT_FOUND_PROGRAMS               = False
+OUTPUT_HASH_PLACEHOLDER             = False
+OUTPUT_TIMESTAMPS                   = False
+OUTPUT_STATS_ON_TIMESTAMPS          = False
+OUTPUT_PROGRAM_CANDIDATES           = False
+OUTPUT_STATS_ON_LEN_OF_PROGRAMS     = False
+STARTING_LETTER                     = 'a'
+FINISHING_LETTER                    = 'z'
+USE_UPPERCASE                       = True
+MAX_LENGTH_PROGRAM                  = -1 # -1 indicates that a program will run in an infinite loop,
+                                         # incrementing length of generated program candidates in each iteration.
+OUTPUT_TO_FILE                      = True 
+FILE_NAME                           = "found_programs.txt"  # Name of the file for outputting found programs
 ####################################
 
 ########### CONFIGURATION ##########
-numberTries = 0  # Count number of tries
-programsFound = 0  # Count a number of programs found
+numberTries = 0         # Count number of tries
+programsFound = 0       # Count a number of programs found
 ####################################
 
 # Generate alphabet consisting of all letters of English alphabet, digits, special symbols.
@@ -73,13 +72,54 @@ def appendToFile(programCandidate):
         f = file(FILE_NAME, "a")
         f.write("Ж ")
         f.write(str(programsFound))
+        f.write("/")
+        f.write(str(numberTries))
         f.write(": ")
         f.write(programCandidate)
         f.write("\n")
         f.close()
     except IOError as (errno, strerror):
         print "I/O error({0}): {1}".format(errno, strerror)
-
+        
+# Load last session from the file and continue from there
+def loadFromFile():
+    global programsFound
+    
+    # Check if file exists:
+    try:
+        open(FILE_NAME)
+        # Now check if is not empty
+        if (os.path.getsize(FILE_NAME) <= 0):
+            raise IOError
+    except IOError:
+        return False # Return False if there is no file to load
+    
+    # First retrieve the last line in the file to find where program was stopped.
+    lastString = returnLastLineTextFile(FILE_NAME)
+    
+    # Find occurrence of the first digit with a regex
+    import re
+    m = re.search("\d", lastString)
+    if m:
+        programsFound = int(lastString[m.start() : lastString.find('/')]) # Redefine a number of found programs based on the value in the last line of the file
+        return lastString[lastString.find('/') + 1 :  lastString.find(':')] # Return number of the last try
+    else:
+        return False
+    
+# Return the last line from a text file.
+# From http://stackoverflow.com/questions/3346430/most-efficient-way-to-get-first-and-last-line-of-file-python
+def returnLastLineTextFile(f):
+    with open(f, 'rb') as fh:
+        offs = -100
+        while True:
+            fh.seek(offs, 2)
+            lines = fh.readlines()
+            if len(lines)>1:
+                last = lines[-1]
+                break
+            offs *= 2
+        return last
+    
 # Main function
 if __name__ == '__main__':
     print "Enumerating Python programs by Pavlo Bazilinskyy <PAVLO.BAZILINSKYY.2013@nuim.ie>"
@@ -90,21 +130,34 @@ if __name__ == '__main__':
     numCharGenerate = 1  # Words of which length to generate inn the current itteration of the loop.
     print "Program has started work... Output will come soon.\n"
     
-    # Clear file for output
-    if OUTPUT_TO_FILE:
-        open(FILE_NAME, 'w').close()
+    # Try to load from the file from the previous session
+    # If file with previous session was found, simple run while loop for that many times without trying to compile
+    numberTriesLoaded = int(loadFromFile()) # Retrieve the last session
+    if (numberTriesLoaded):
+        print "Last saved session loaded successfully."
+    if (not numberTriesLoaded):
+        # Clear file for output
+        if OUTPUT_TO_FILE:
+            open(FILE_NAME, 'w').close()
     
+    
+    # Create dictionary for storing numbers of programs of different length found.
     if OUTPUT_STATS_ON_LEN_OF_PROGRAMS:
-        foundProgramsByLength = dict()  # Create dictionary for storing numbers of programs of different langth found.
+        foundProgramsByLength = dict()  
     
     # Main loop. It can be exited if MAX_LENGTH_PROGRAM is defined.
     while True:
         if OUTPUT_STATS_ON_LEN_OF_PROGRAMS:
-            foundProgramsByLength[str(numCharGenerate)] = 0  # Initialise entry correspponding to current length in the dictionary.
+            foundProgramsByLength[str(numCharGenerate)] = 0  # Initialise entry corresponding to current length in the dictionary.
             # Generate all possible words of size numCharGenerate in lexicographical order. 
         for programCandidate in product(getAlphabet(startLetter=STARTING_LETTER, finishLetter=FINISHING_LETTER), repeat=numCharGenerate): 
             numberTries += 1
-            programCandidate = """""".join(programCandidate)
+            # Check if there is any need to compile (this program candidate has not been processed in previous sessions
+            if (numberTries <= numberTriesLoaded and numberTriesLoaded != -1):
+                continue
+            
+            # Otherwise process the program candidate
+            programCandidate = """""".join(programCandidate) # Make a string representing next program candidate
             if OUTPUT_PROGRAM_CANDIDATES:
                 print "\nNEXT PROGRAM CANDIDATE:\n", programCandidate
             
