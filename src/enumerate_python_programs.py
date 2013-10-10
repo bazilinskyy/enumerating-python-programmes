@@ -24,8 +24,8 @@ OUTPUT_STATS_ON_LEN_OF_PROGRAMS     = False
 STARTING_LETTER                     = 'a'
 FINISHING_LETTER                    = 'z'
 USE_UPPERCASE                       = True
-MAX_LENGTH_PROGRAM                  = -1 # -1 indicates that a program will run in an infinite loop,
-                                         # incrementing length of generated program candidates in each iteration.
+MAX_LENGTH_PROGRAM                  = -1    # -1 indicates that a program will run in an infinite loop,
+                                            # incrementing length of generated program candidates in each iteration.
 OUTPUT_TO_FILE                      = True 
 FILE_NAME                           = "found_programs.txt"  # Name of the file for outputting found programs
 ####################################
@@ -33,6 +33,7 @@ FILE_NAME                           = "found_programs.txt"  # Name of the file f
 ########### CONFIGURATION ##########
 numberTries = 0         # Count number of tries
 programsFound = 0       # Count a number of programs found
+numCharGenerate = 1     # Start processing strings of this length. Updated when a file is loaded.
 ####################################
 
 # Generate alphabet consisting of all letters of English alphabet, digits, special symbols.
@@ -84,6 +85,8 @@ def appendToFile(programCandidate):
 # Load last session from the file and continue from there
 def loadFromFile():
     global programsFound
+    global numCharGenerate
+    global numberTries
     
     # Check if file exists:
     try:
@@ -101,10 +104,22 @@ def loadFromFile():
     import re
     m = re.search("\d", lastString)
     if m:
-        programsFound = int(lastString[m.start() : lastString.find('/')]) # Redefine a number of found programs based on the value in the last line of the file
+        programsFound = int(lastString[m.start() : lastString.find('/')])   # Redefine a number of found programs based on the value in the last line of the file
+        numCharGenerate = len(lastString[lastString.find(':') : ]) - 3      # Set length of the string to work with to the value from the file
+    
+        numberTries = findNumberOfTriesBeforeGivenLength(FILE_NAME, numCharGenerate) # Update a number of attempts based on the last string of (last processed length of string - 1)
         return lastString[lastString.find('/') + 1 :  lastString.find(':')] # Return number of the last try
     else:
         return False
+    
+# Find out a number of tries attempted before reaching the first string of given length
+def findNumberOfTriesBeforeGivenLength(f, length):
+    with open(f, 'r') as inF:
+        for line in inF:
+            if (len(line[line.find(':') : ]) - 3) == length: # Find the first string with a program candidate of given length
+                return int(line[line.find('/') + 1 :  line.find(':')]) - 1
+    return False
+                
     
 # Return the last line from a text file.
 # From http://stackoverflow.com/questions/3346430/most-efficient-way-to-get-first-and-last-line-of-file-python
@@ -127,7 +142,6 @@ if __name__ == '__main__':
     alphabet = getAlphabet()  # Input language
     if OUTPUT_TIMESTAMPS:
         start_time = time.time()
-    numCharGenerate = 1  # Words of which length to generate inn the current itteration of the loop.
     print "Program has started work... Output will come soon.\n"
     
     # Try to load from the file from the previous session
