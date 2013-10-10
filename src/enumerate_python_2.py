@@ -1,4 +1,4 @@
- #!/usr/bin/env python
+ #!/usr/bin/env python3
 # -*- coding: utf-8 -*- 
 
 '''
@@ -15,12 +15,12 @@ import os.path
 ########## CONFIGURATION ##########
 OUTPUT_FOUND_NOTIFICATION           = False
 OUTPUT_SYNTAX_CHECK_ERRORS          = False
-OUTPUT_FOUND_PROGRAMS               = False
-OUTPUT_HASH_PLACEHOLDER             = False
-OUTPUT_TIMESTAMPS                   = False
-OUTPUT_STATS_ON_TIMESTAMPS          = False
+OUTPUT_FOUND_PROGRAMS               = True
 OUTPUT_PROGRAM_CANDIDATES           = False
-OUTPUT_STATS_ON_LEN_OF_PROGRAMS     = False
+OUTPUT_TIMESTAMPS                   = True
+OUTPUT_STATS_ON_TIMESTAMPS          = True
+OUTPUT_STATS_ON_LEN_OF_PROGRAMS     = True
+SHOW_STATS_AFTER                    = 1000000
 STARTING_LETTER                     = 'a'
 FINISHING_LETTER                    = 'z'
 USE_UPPERCASE                       = True
@@ -31,9 +31,10 @@ FILE_NAME                           = "found_programs.txt"  # Name of the file f
 ####################################
 
 ########### CONFIGURATION ##########
-numberTries = 0         # Count number of tries
-programsFound = 0       # Count a number of programs found
-numCharGenerate = 1     # Start processing strings of this length. Updated when a file is loaded.
+numberTries = 0                 # Count number of tries
+programsFound = 0               # Count a number of programs found
+numCharGenerate = 1             # Start processing strings of this length. Updated when a file is loaded.
+foundProgramsByLength = dict()  # Dictionary of numbers of found programs in the current session, sorted by length
 ####################################
 
 # Generate alphabet consisting of all letters of English alphabet, digits, special symbols.
@@ -45,6 +46,7 @@ def getAlphabet(startLetter='a', finishLetter='z', digits=True, symbols=True):
         alphabet += "+-=%&|^#.,;:(){}[]!*/\?~_ \t\n"
     if USE_UPPERCASE:  # Also add uppercase letters, if required.
         alphabet += ''.join(getLettersInRange(startLetter.upper(), finishLetter.upper()))
+    alphabet = ''.join(sorted(alphabet))
     return alphabet
 
 # Receive letters in range [startLetter,finishLetter] as a generator.
@@ -58,12 +60,8 @@ def tryCompile(programCandidate):
         
 # Print output to the console
 def printFoundProgram(program):
-    if OUTPUT_HASH_PLACEHOLDER:
-        print "\n\n######################################################################################################"
     if OUTPUT_FOUND_NOTIFICATION:
-        print "Program number", programsFound, "was found. It is", len(program), "characters long. Total number of tries so far:", numberTries
-    if OUTPUT_HASH_PLACEHOLDER:
-        print "######################################################################################################"
+        print "\n--- Program number", programsFound, "was found. It is", len(program), "characters long. Total number of tries so far:", numberTries
     if OUTPUT_FOUND_PROGRAMS:
         print "Ж", program
 
@@ -106,7 +104,6 @@ def loadFromFile():
     if m:
         programsFound = int(lastString[m.start() : lastString.find('/')])   # Redefine a number of found programs based on the value in the last line of the file
         numCharGenerate = len(lastString[lastString.find(':') : ]) - 3      # Set length of the string to work with to the value from the file
-    
         numberTries = findNumberOfTriesBeforeGivenLength(FILE_NAME, numCharGenerate) # Update a number of attempts based on the last string of (last processed length of string - 1)
         return lastString[lastString.find('/') + 1 :  lastString.find(':')] # Return number of the last try
     else:
@@ -137,27 +134,22 @@ def returnLastLineTextFile(f):
     
 # Main function
 if __name__ == '__main__':
-    print "Enumerating Python programs by Pavlo Bazilinskyy <PAVLO.BAZILINSKYY.2013@nuim.ie>"
+    print "--- Enumerating python programs by Pavlo Bazilinskyy <PAVLO.BAZILINSKYY.2013@nuim.ie>"
     # Output language of combinations of all possible symbols that can be inputed from a keyboard in lexicographical order (Sigma*).
     alphabet = getAlphabet()  # Input language
     if OUTPUT_TIMESTAMPS:
         start_time = time.time()
-    print "Program has started work... Output will come soon.\n"
+    print "--- Program has started work... Output will come soon.\n"
     
     # Try to load from the file from the previous session
     # If file with previous session was found, simple run while loop for that many times without trying to compile
     numberTriesLoaded = int(loadFromFile()) # Retrieve the last session
     if (numberTriesLoaded):
-        print "Last saved session loaded successfully."
-    if (not numberTriesLoaded):
+        print "--- Last saved session loaded successfully."
+    else:
         # Clear file for output
         if OUTPUT_TO_FILE:
             open(FILE_NAME, 'w').close()
-    
-    
-    # Create dictionary for storing numbers of programs of different length found.
-    if OUTPUT_STATS_ON_LEN_OF_PROGRAMS:
-        foundProgramsByLength = dict()  
     
     # Main loop. It can be exited if MAX_LENGTH_PROGRAM is defined.
     while True:
@@ -193,13 +185,13 @@ if __name__ == '__main__':
             except SyntaxError, v:  # Program candidate failed to be compiled. Hence, it is not a valid Python program.
                 if OUTPUT_SYNTAX_CHECK_ERRORS:
                     print "Syntax error:", v, " in program: ", programCandidate
-            if OUTPUT_TIMESTAMPS and numberTries % 1000000 == 0:  # Output timestamp after analysing every 1000000 candidates.
-                print "\n%.0f seconds elapsed." % (time.time() - start_time)
+            if OUTPUT_TIMESTAMPS and numberTries % SHOW_STATS_AFTER == 0:  # Output timestamp after analysing every 1000000 candidates.
+                print "\n--- %.0f seconds elapsed." % (time.time() - start_time)
                 if OUTPUT_STATS_ON_TIMESTAMPS:
-                    print "Programs found                :", programsFound
-                    print "Program candidates generated  :", numberTries
+                    print "--- Programs found                :", programsFound
+                    print "--- Program candidates generated  :", numberTries
                 if OUTPUT_STATS_ON_LEN_OF_PROGRAMS:
-                    print "Numbers of programs of different length found:", foundProgramsByLength
+                    print "--- Numbers of programs of different length found in this session:", foundProgramsByLength
                 
         if (MAX_LENGTH_PROGRAM != -1 and numCharGenerate >= MAX_LENGTH_PROGRAM):
             break
