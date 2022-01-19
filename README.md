@@ -1,3 +1,3 @@
-# Enumerating Python Programmes
+# Enumerating python programmes
 
 Hobby project.
